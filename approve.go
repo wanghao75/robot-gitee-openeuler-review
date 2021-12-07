@@ -53,6 +53,14 @@ func (bot *robot) AddApprove(cfg *botConfig, e giteeclient.PRNoteEvent, log *log
 		return err
 	}
 
+	err = bot.cli.CreatePRComment(
+		pr.Org, pr.Repo, pr.Number,
+		fmt.Sprintf(commentAddLabel, approvedLabel, commenter),
+	)
+	if err != nil {
+		log.Error(err)
+	}
+
 	return bot.tryMerge(e, cfg, false, log)
 }
 
@@ -71,5 +79,13 @@ func (bot *robot) removeApprove(cfg *botConfig, e giteeclient.PRNoteEvent, log *
 		))
 	}
 
-	return bot.cli.RemovePRLabel(pr.Org, pr.Repo, pr.Number, approvedLabel)
+	err = bot.cli.RemovePRLabel(pr.Org, pr.Repo, pr.Number, approvedLabel)
+	if err != nil {
+		return err
+	}
+
+	return bot.cli.CreatePRComment(
+		pr.Org, pr.Repo, pr.Number,
+		fmt.Sprintf(commentRemovedLabel, approvedLabel, commenter),
+	)
 }
