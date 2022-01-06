@@ -21,7 +21,6 @@ type iClient interface {
 	CreatePRComment(org, repo string, number int32, comment string) error
 	GetUserPermissionsOfRepo(org, repo, login string) (sdk.ProjectMemberPermission, error)
 	GetPathContent(org, repo, path, ref string) (sdk.Content, error)
-	GetPullRequestChanges(org, repo string, number int32) ([]sdk.PullRequestFiles, error)
 	CreateRepoLabel(org, repo, label, color string) error
 	GetRepoLabels(owner, repo string) ([]sdk.Label, error)
 	MergePR(owner, repo string, number int32, opt sdk.PullRequestMergePutParam) error

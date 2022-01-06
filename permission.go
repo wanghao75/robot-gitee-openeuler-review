@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/base64"
-	"path/filepath"
 	"strings"
 
 	"github.com/opensourceways/community-robot-lib/giteeclient"
@@ -16,7 +15,6 @@ const ownerFile = "OWNERS"
 
 func (bot *robot) hasPermission(
 	commenter string,
-	needCheckSig bool,
 	pr giteeclient.PRInfo,
 	cfg *botConfig,
 	log *logrus.Entry,
@@ -33,10 +31,6 @@ func (bot *robot) hasPermission(
 
 	if bot.isRepoOwners(commenter, pr, log) {
 		return true, nil
-	}
-
-	if needCheckSig {
-		return bot.isOwnerOfSig(commenter, pr, cfg, log)
 	}
 
 	return false, nil
@@ -58,51 +52,6 @@ func (bot *robot) isRepoOwners(
 
 	o := decodeOwnerFile(v.Content, log)
 	return o.Has(commenter)
-}
-
-func (bot *robot) isOwnerOfSig(
-	commenter string,
-	pr giteeclient.PRInfo,
-	cfg *botConfig,
-	log *logrus.Entry,
-) (bool, error) {
-	changes, err := bot.cli.GetPullRequestChanges(pr.Org, pr.Repo, pr.Number)
-	if err != nil || len(changes) == 0 {
-		return false, err
-	}
-
-	pathes := sets.NewString()
-	for _, file := range changes {
-		if !cfg.regSigDir.MatchString(file.Filename) {
-			return false, nil
-		}
-
-		pathes.Insert(filepath.Dir(file.Filename))
-	}
-
-	files, err := bot.getSigOwnerFiles(pr.Org, pr.Repo, pr.BaseRef, log)
-	if err != nil {
-		return false, err
-	}
-
-	for _, v := range files.Files {
-		p := v.Path.Dir()
-		if !pathes.Has(p) {
-			continue
-		}
-
-		if o := decodeOwnerFile(v.Content, log); !o.Has(commenter) {
-			return false, nil
-		}
-
-		pathes.Delete(p)
-
-		if len(pathes) == 0 {
-			return true, nil
-		}
-	}
-
-	return false, nil
 }
 
 func (bot *robot) getSigOwnerFiles(org, repo, branch string, log *logrus.Entry) (models.FilesInfo, error) {
