@@ -60,7 +60,7 @@ func (bot *robot) addLGTM(cfg *botConfig, e giteeclient.PRNoteEvent, log *logrus
 		return bot.cli.CreatePRComment(org, repo, number, commentAddLGTMBySelf)
 	}
 
-	v, err := bot.hasPermission(commenter, pr, cfg, log)
+	v, err := bot.hasPermission(commenter, pr, log)
 	if err != nil {
 		return err
 	}
@@ -97,7 +97,7 @@ func (bot *robot) removeLGTM(cfg *botConfig, e giteeclient.PRNoteEvent, log *log
 	org, repo, number := pr.Org, pr.Repo, pr.Number
 
 	if commenter := e.GetCommenter(); pr.Author != commenter {
-		v, err := bot.hasPermission(commenter, pr, cfg, log)
+		v, err := bot.hasPermission(commenter, pr, log)
 		if err != nil {
 			return err
 		}

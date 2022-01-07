@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	libconfig "github.com/opensourceways/community-robot-lib/config"
-	"regexp"
 )
 
 type pullRequestMergeMethod string
@@ -69,10 +68,6 @@ type botConfig struct {
 	// When it is greater than 1, the lgtm label is composed of 'lgtm-login'.
 	// The default value is 1 which means the lgtm label is itself.
 	LgtmCountsRequired uint `json:"lgtm_counts_required,omitempty"`
-
-	// SigsDir is the directory of Sig. It must be set when CheckPermissionBasedOnSigOwners is true.
-	SigsDir   string        `json:"sigs_dir,omitempty"`
-	regSigDir regexp.Regexp `json:"-"`
 
 	// LabelsForMerge specifies the labels except approved and lgtm relevant labels
 	// that must be available to merge pr

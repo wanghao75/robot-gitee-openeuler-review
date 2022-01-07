@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/opensourceways/community-robot-lib/giteeclient"
-	"github.com/opensourceways/repo-file-cache/models"
 	"github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/yaml"
@@ -16,7 +15,6 @@ const ownerFile = "OWNERS"
 func (bot *robot) hasPermission(
 	commenter string,
 	pr giteeclient.PRInfo,
-	cfg *botConfig,
 	log *logrus.Entry,
 ) (bool, error) {
 	commenter = strings.ToLower(commenter)
@@ -52,33 +50,6 @@ func (bot *robot) isRepoOwners(
 
 	o := decodeOwnerFile(v.Content, log)
 	return o.Has(commenter)
-}
-
-func (bot *robot) getSigOwnerFiles(org, repo, branch string, log *logrus.Entry) (models.FilesInfo, error) {
-	files, err := bot.cacheCli.GetFiles(
-		models.Branch{
-			Platform: "gitee",
-			Org:      org,
-			Repo:     repo,
-			Branch:   branch,
-		},
-		ownerFile, false,
-	)
-	if err != nil {
-		return models.FilesInfo{}, err
-	}
-
-	if len(files.Files) == 0 {
-		log.WithFields(
-			logrus.Fields{
-				"org":    org,
-				"repo":   repo,
-				"branch": branch,
-			},
-		).Infof("there is not %s file stored in cache.", ownerFile)
-	}
-
-	return files, nil
 }
 
 func decodeOwnerFile(content string, log *logrus.Entry) sets.String {
