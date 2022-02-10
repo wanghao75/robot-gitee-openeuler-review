@@ -109,10 +109,13 @@ func (m *mergeHelper) merge() error {
 		}
 	}
 
+	desc := m.genMergeDesc()
+
 	return m.cli.MergePR(
 		m.org, m.repo, number,
 		sdk.PullRequestMergePutParam{
 			MergeMethod: string(m.cfg.MergeMethod),
+			Description: desc,
 		},
 	)
 }
@@ -186,6 +189,43 @@ func (m *mergeHelper) getFreezeContent(f freezeFile) (freezeContent, error) {
 	err = yaml.Unmarshal(b, &fc)
 
 	return fc, err
+}
+
+func (m *mergeHelper) genMergeDesc() string {
+	comments, err := m.cli.ListPRComments(m.org, m.repo, m.pr.Number)
+	if err != nil || len(comments) == 0 {
+		return ""
+	}
+
+	f := func(comment sdk.PullRequestComments, reg *regexp.Regexp) bool {
+		return reg.MatchString(comment.Body) &&
+			comment.UpdatedAt == comment.CreatedAt &&
+			comment.User.Login != m.pr.User.Login
+	}
+
+	reviewers := sets.NewString()
+	signers := sets.NewString()
+
+	for _, c := range comments {
+		if f(c, regAddLgtm) {
+			reviewers.Insert(c.User.Login)
+		}
+
+		if f(c, regAddApprove) {
+			signers.Insert(c.User.Login)
+		}
+	}
+
+	if len(signers) == 0 && len(reviewers) == 0 {
+		return ""
+	}
+
+	return fmt.Sprintf(
+		"From: @%s \nReviewed-by: @%s \nSigned-off-by: @%s \n",
+		m.pr.User.Login,
+		strings.Join(reviewers.UnsortedList(), ", @"),
+		strings.Join(signers.UnsortedList(), ", @"),
+	)
 }
 
 func isLabelMatched(labels sets.String, cfg *botConfig) []string {
