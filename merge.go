@@ -203,14 +203,16 @@ func (m *mergeHelper) genMergeDesc() string {
 			comment.User.Login != m.pr.User.Login
 	}
 
-	var signers, reviewers []string
+	reviewers := sets.NewString()
+	signers := sets.NewString()
+
 	for _, c := range comments {
 		if f(c, regAddLgtm) {
-			reviewers = append(reviewers, c.User.Login)
+			reviewers.Insert(c.User.Login)
 		}
 
 		if f(c, regAddApprove) {
-			signers = append(signers, c.User.Login)
+			signers.Insert(c.User.Login)
 		}
 	}
 
@@ -221,8 +223,8 @@ func (m *mergeHelper) genMergeDesc() string {
 	return fmt.Sprintf(
 		"From: @%s \nReviewed-by: @%s \nSigned-off-by: @%s \n",
 		m.pr.User.Login,
-		strings.Join(reviewers, ", @"),
-		strings.Join(signers, ", @"),
+		strings.Join(reviewers.UnsortedList(), ", @"),
+		strings.Join(signers.UnsortedList(), ", @"),
 	)
 }
 
