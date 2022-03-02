@@ -120,7 +120,7 @@ func (c *botConfig) validate() error {
 		}
 
 		v, err := regexp.Compile(fmt.Sprintf(
-			`^%s/[-\w]+/[\s\S]+/`,
+			`^%s/[-\w]+/`,
 			strings.TrimSuffix(c.SigsDir, "/"),
 		))
 		if err != nil {
