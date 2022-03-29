@@ -13,6 +13,7 @@ import (
 )
 
 const ownerFile = "OWNERS"
+const sigInfoFile = "sig-info.yaml"
 
 func (bot *robot) hasPermission(
 	org, repo, commenter string,
@@ -31,34 +32,11 @@ func (bot *robot) hasPermission(
 		return true, nil
 	}
 
-	if bot.isRepoOwners(org, repo, commenter, pr, log) {
-		return true, nil
-	}
-
 	if needCheckSig {
 		return bot.isOwnerOfSig(org, repo, commenter, pr, cfg, log)
 	}
 
 	return false, nil
-}
-
-func (bot *robot) isRepoOwners(
-	org, repo, commenter string,
-	pr *sdk.PullRequestHook,
-	log *logrus.Entry,
-) bool {
-	ref := pr.GetBase().GetRef()
-	v, err := bot.cli.GetPathContent(org, repo, ownerFile, ref)
-	if err != nil {
-		log.Errorf(
-			"get file:%s/%s/%s:%s, err:%s",
-			org, repo, ref, ownerFile, err.Error(),
-		)
-		return false
-	}
-
-	o := decodeOwnerFile(v.Content, log)
-	return o.Has(commenter)
 }
 
 func (bot *robot) isOwnerOfSig(
@@ -74,39 +52,65 @@ func (bot *robot) isOwnerOfSig(
 
 	pathes := sets.NewString()
 	for _, file := range changes {
-		if !cfg.regSigDir.MatchString(file.Filename) {
+		if !cfg.regSigDir.MatchString(file.Filename) || strings.Count(file.Filename, "/") > 2 {
 			return false, nil
 		}
 
 		pathes.Insert(filepath.Dir(file.Filename))
 	}
 
-	files, err := bot.getSigOwnerFiles(org, repo, pr.GetBase().GetRef(), log)
+	ownerFiles, err := bot.getFiles(org, repo, pr.GetBase().GetRef(), ownerFile, log)
 	if err != nil {
 		return false, err
 	}
 
-	for _, v := range files.Files {
-		p := v.Path.Dir()
-		if !pathes.Has(p) {
-			continue
+	sigInfoFiles, err := bot.getFiles(org, repo, pr.GetBase().GetRef(), sigInfoFile, log)
+	if err != nil {
+		return false, err
+	}
+
+	if len(ownerFiles.Files) > 0 {
+		for _, v := range ownerFiles.Files {
+			p := v.Path.Dir()
+			if !pathes.Has(p) {
+				continue
+			}
+
+			if o := decodeOwnerFile(v.Content, log); !o.Has(commenter) {
+				return false, nil
+			}
+
+			pathes.Delete(p)
+
+			if len(pathes) == 0 {
+				return true, nil
+			}
 		}
+	}
 
-		if o := decodeOwnerFile(v.Content, log); !o.Has(commenter) {
-			return false, nil
-		}
+	if len(ownerFiles.Files) == 0 && len(sigInfoFiles.Files) > 0 {
+		for _, v := range sigInfoFiles.Files {
+			p := v.Path.Dir()
+			if !pathes.Has(p) {
+				continue
+			}
 
-		pathes.Delete(p)
+			if o := decodeSigInfoFile(v.Content, log); !o.Has(commenter) {
+				return false, nil
+			}
 
-		if len(pathes) == 0 {
-			return true, nil
+			pathes.Delete(p)
+
+			if len(pathes) == 0 {
+				return true, nil
+			}
 		}
 	}
 
 	return false, nil
 }
 
-func (bot *robot) getSigOwnerFiles(org, repo, branch string, log *logrus.Entry) (models.FilesInfo, error) {
+func (bot *robot) getFiles(org, repo, branch, fileName string, log *logrus.Entry) (models.FilesInfo, error) {
 	files, err := bot.cacheCli.GetFiles(
 		models.Branch{
 			Platform: "gitee",
@@ -114,7 +118,7 @@ func (bot *robot) getSigOwnerFiles(org, repo, branch string, log *logrus.Entry) 
 			Repo:     repo,
 			Branch:   branch,
 		},
-		ownerFile, false,
+		fileName, false,
 	)
 	if err != nil {
 		return models.FilesInfo{}, err
@@ -127,10 +131,35 @@ func (bot *robot) getSigOwnerFiles(org, repo, branch string, log *logrus.Entry) 
 				"repo":   repo,
 				"branch": branch,
 			},
-		).Infof("there is not %s file stored in cache.", ownerFile)
+		).Infof("there is not %s file stored in cache.", fileName)
 	}
 
 	return files, nil
+}
+
+func decodeSigInfoFile(content string, log *logrus.Entry) sets.String {
+	owners := sets.NewString()
+
+	c, err := base64.StdEncoding.DecodeString(content)
+	if err != nil {
+		log.WithError(err).Error("decode file")
+
+		return owners
+	}
+
+	var m SigInfos
+
+	if err = yaml.Unmarshal(c, &m); err != nil {
+		log.WithError(err).Error("code yaml file")
+
+		return owners
+	}
+
+	for _, v := range m.Maintainers {
+		owners.Insert(strings.ToLower(v.GiteeID))
+	}
+
+	return owners
 }
 
 func decodeOwnerFile(content string, log *logrus.Entry) sets.String {
