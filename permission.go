@@ -69,41 +69,37 @@ func (bot *robot) isOwnerOfSig(
 		return false, err
 	}
 
-	if len(ownerFiles.Files) > 0 {
-		for _, v := range ownerFiles.Files {
-			p := v.Path.Dir()
-			if !pathes.Has(p) {
-				continue
-			}
+	for _, v := range ownerFiles.Files {
+		p := v.Path.Dir()
+		if !pathes.Has(p) {
+			continue
+		}
 
-			if o := decodeOwnerFile(v.Content, log); !o.Has(commenter) {
-				return false, nil
-			}
+		if o := decodeOwnerFile(v.Content, log); !o.Has(commenter) {
+			return false, nil
+		}
 
-			pathes.Delete(p)
+		pathes.Delete(p)
 
-			if len(pathes) == 0 {
-				return true, nil
-			}
+		if len(pathes) == 0 {
+			return true, nil
 		}
 	}
 
-	if len(ownerFiles.Files) == 0 && len(sigInfoFiles.Files) > 0 {
-		for _, v := range sigInfoFiles.Files {
-			p := v.Path.Dir()
-			if !pathes.Has(p) {
-				continue
-			}
+	for _, v := range sigInfoFiles.Files {
+		p := v.Path.Dir()
+		if !pathes.Has(p) {
+			continue
+		}
 
-			if o := decodeSigInfoFile(v.Content, log); !o.Has(commenter) {
-				return false, nil
-			}
+		if o := decodeSigInfoFile(v.Content, log); !o.Has(commenter) {
+			return false, nil
+		}
 
-			pathes.Delete(p)
+		pathes.Delete(p)
 
-			if len(pathes) == 0 {
-				return true, nil
-			}
+		if len(pathes) == 0 {
+			return true, nil
 		}
 	}
 
