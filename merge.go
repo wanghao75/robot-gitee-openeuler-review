@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 
 	sdk "github.com/opensourceways/go-gitee/gitee"
 	"github.com/sirupsen/logrus"
@@ -18,6 +19,7 @@ const (
 	msgInvalidLabels      = "PR should remove these labels: %s"
 	msgNotEnoughLGTMLabel = "PR needs %d lgtm labels and now gets %d"
 	msgFrozenWithOwner    = "The target branch of PR has been frozen and it can be merge only by branch owners: %s"
+	legalLabelsAddedBy    = "openeuler-ci-bot"
 )
 
 var regCheckPr = regexp.MustCompile(`(?mi)^/check-pr\s*$`)
@@ -125,7 +127,16 @@ func (m *mergeHelper) canMerge(log *logrus.Entry) ([]string, bool) {
 		return []string{msgPRConflicts}, false
 	}
 
-	if r := isLabelMatched(m.getPRLabels(), m.cfg); len(r) > 0 {
+	org := m.org
+	repo := m.repo
+	number := m.pr.GetNumber()
+
+	ops, err := m.cli.ListPROperationLogs(org, repo, number)
+	if err != nil {
+		return []string{}, false
+	}
+
+	if r := isLabelMatched(m.getPRLabels(), m.cfg, ops, log); len(r) > 0 {
 		return r, false
 	}
 
@@ -241,7 +252,7 @@ func (m *mergeHelper) genMergeDesc() string {
 	)
 }
 
-func isLabelMatched(labels sets.String, cfg *botConfig) []string {
+func isLabelMatched(labels sets.String, cfg *botConfig, ops []sdk.OperateLog, log *logrus.Entry) []string {
 	var reasons []string
 
 	needs := sets.NewString(approvedLabel)
@@ -254,6 +265,11 @@ func isLabelMatched(labels sets.String, cfg *botConfig) []string {
 		if n := uint(len(v)); n < ln {
 			reasons = append(reasons, fmt.Sprintf(msgNotEnoughLGTMLabel, ln, n))
 		}
+	}
+
+	s := checkLabelsLegal(labels, needs, ops, log)
+	if s != "" {
+		reasons = append(reasons, s)
 	}
 
 	if v := needs.Difference(labels); v.Len() > 0 {
@@ -272,4 +288,91 @@ func isLabelMatched(labels sets.String, cfg *botConfig) []string {
 	}
 
 	return reasons
+}
+
+type labelLog struct {
+	label string
+	who   string
+	t     time.Time
+}
+
+func getLatestLog(ops []sdk.OperateLog, label string, log *logrus.Entry) (labelLog, bool) {
+	var t time.Time
+
+	index := -1
+
+	for i := range ops {
+		op := &ops[i]
+
+		if op.ActionType != sdk.ActionAddLabel || !strings.Contains(op.Content, label) {
+			continue
+		}
+
+		ut, err := time.Parse(time.RFC3339, op.CreatedAt)
+		if err != nil {
+			log.Warnf("parse time:%s failed", op.CreatedAt)
+
+			continue
+		}
+
+		if index < 0 || ut.After(t) {
+			t = ut
+			index = i
+		}
+	}
+
+	if index >= 0 {
+		if user := ops[index].User; user != nil && user.Login != "" {
+			return labelLog{
+				label: label,
+				t:     t,
+				who:   user.Login,
+			}, true
+		}
+	}
+
+	return labelLog{}, false
+}
+
+func checkLabelsLegal(labels sets.String, needs sets.String, ops []sdk.OperateLog, log *logrus.Entry) string {
+	f := func(label string) string {
+		v, b := getLatestLog(ops, label, log)
+		if !b {
+			return fmt.Sprintf("The corresponding operation log is missing. you should delete " +
+				"the label and add it again by correct way")
+		}
+
+		if v.who != legalLabelsAddedBy {
+			if strings.HasPrefix(v.label, "openeuler-cla/") {
+				return fmt.Sprintf("%s You can't add %s by yourself, "+
+					"please remove it and use /check-cla to add it", v.who, v.label)
+			}
+
+			return fmt.Sprintf("%s You can't add %s by yourself, please contact the maintainers", v.who, v.label)
+		}
+
+		return ""
+	}
+
+	v := make([]string, 0, len(labels))
+
+	for label := range labels {
+		if ok := needs.Has(label); ok || strings.HasPrefix(label, lgtmLabel) {
+			if s := f(label); s != "" {
+				v = append(v, fmt.Sprintf("%s: %s", label, s))
+			}
+		}
+	}
+
+	if n := len(v); n > 0 {
+		s := "label is"
+
+		if n > 1 {
+			s = "labels are"
+		}
+
+		return fmt.Sprintf("**The following %s not ready**.\n\n%s", s, strings.Join(v, "\n\n"))
+	}
+
+	return ""
 }
