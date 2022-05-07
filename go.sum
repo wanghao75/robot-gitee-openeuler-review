@@ -270,6 +270,8 @@ github.com/opensourceways/go-gitee v0.0.0-20211230094517-effa55336a8b/go.mod h1:
 github.com/opensourceways/go-gitee v0.0.0-20220118023153-0c41490fb43b/go.mod h1:yvVsEMhp7frMblzN1sco4C7cRlnlpqkkn3O2JQNdRu0=
 github.com/opensourceways/go-gitee v0.0.0-20220120022149-6d34985edf4f h1:L9QeiOlWyPcQTdNynF9L3zL6Yeq/+4L43cyO3vPROQE=
 github.com/opensourceways/go-gitee v0.0.0-20220120022149-6d34985edf4f/go.mod h1:yvVsEMhp7frMblzN1sco4C7cRlnlpqkkn3O2JQNdRu0=
+github.com/opensourceways/go-gitee v0.0.0-20220331060602-b86c6d95a2a8 h1:4Yl2rSYgr2pxJzJHs6YUZiMClHuon3Z9vTcANK3GOEU=
+github.com/opensourceways/go-gitee v0.0.0-20220331060602-b86c6d95a2a8/go.mod h1:yvVsEMhp7frMblzN1sco4C7cRlnlpqkkn3O2JQNdRu0=
 github.com/opensourceways/repo-file-cache v0.0.0-20220111033841-e731b3bb770a h1:KP4RWVvx3KmiM1CjQLFnhmfGXkXBUh8j9k4QyZQtCFg=
 github.com/opensourceways/repo-file-cache v0.0.0-20220111033841-e731b3bb770a/go.mod h1:A2BoPC0Jquv5d3noGmahyYICVRWqTEkIpg5IABUthxU=
 github.com/opentracing/opentracing-go v1.2.0/go.mod h1:GxEUsuufX4nBwe+T+Wl9TAgYrxe9dPLANfrWvHYVTgc=

@@ -27,6 +27,7 @@ type iClient interface {
 	UpdatePullRequest(org, repo string, number int32, param sdk.PullRequestUpdateParam) (sdk.PullRequest, error)
 	ListPRComments(org, repo string, number int32) ([]sdk.PullRequestComments, error)
 	GetPRLabels(org, repo string, number int32) ([]sdk.Label, error)
+	ListPROperationLogs(org, repo string, number int32) ([]sdk.OperateLog, error)
 }
 
 func newRobot(cli iClient, cacheCli *cache.SDK) *robot {
