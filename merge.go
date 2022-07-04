@@ -117,7 +117,7 @@ func (m *mergeHelper) merge() error {
 		m.org, m.repo, number,
 		sdk.PullRequestMergePutParam{
 			MergeMethod: string(m.cfg.MergeMethod),
-			Description: desc,
+			Description: fmt.Sprintf("\n%s \n%s", m.pr.Body, desc),
 		},
 	)
 }
@@ -242,6 +242,68 @@ func (m *mergeHelper) genMergeDesc() string {
 
 	if len(signers) == 0 && len(reviewers) == 0 {
 		return ""
+	}
+
+	// kernel return the name and email address
+	org, repo := m.org, m.repo
+	if org == "openeuler" && repo == "kernel" {
+		content, err := m.cli.GetPathContent("openeuler", "community", "sig/Kernel/sig-info.yaml", "master")
+		if err != nil {
+			return ""
+		}
+
+		c, err := base64.StdEncoding.DecodeString(content.Content)
+		if err != nil {
+			return ""
+		}
+
+		var s SigInfos
+
+		if err = yaml.Unmarshal(c, &s); err != nil {
+			return ""
+		}
+
+		nameEmail := make(map[string]string, len(s.Maintainers))
+		for _, ms := range s.Maintainers {
+			nameEmail[ms.GiteeID] = fmt.Sprintf("%s <%s>", ms.Name, ms.Email)
+		}
+
+		for _, i := range s.Repositories {
+			for _, j := range i.Committers {
+				nameEmail[j.GiteeID] = fmt.Sprintf("%s <%s>", j.Name, j.Email)
+			}
+		}
+
+		reviewersInfo := sets.NewString()
+		for r, _ := range reviewers {
+			if v, ok := nameEmail[r]; ok {
+				reviewersInfo.Insert(v)
+			}
+		}
+
+		signersInfo := sets.NewString()
+		for s, _ := range signers {
+			if v, ok := nameEmail[s]; ok {
+				signersInfo.Insert(v)
+			}
+		}
+
+		reviewedUserInfo := make([]string, 0)
+		for _, item := range reviewersInfo.UnsortedList() {
+			reviewedUserInfo = append(reviewedUserInfo, fmt.Sprintf("Reviewed-by: %s \n", item))
+		}
+
+		signedOffUserInfo := make([]string, 0)
+		for _, item := range signersInfo.UnsortedList() {
+			signedOffUserInfo = append(signedOffUserInfo, fmt.Sprintf("Signed-off-by: %s \n", item))
+		}
+
+		return fmt.Sprintf(
+			"\nFrom: @%s \n%s%s",
+			m.pr.User.Login,
+			strings.Join(reviewedUserInfo, ""),
+			strings.Join(signedOffUserInfo, ""),
+		)
 	}
 
 	return fmt.Sprintf(
