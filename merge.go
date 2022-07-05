@@ -113,11 +113,21 @@ func (m *mergeHelper) merge() error {
 
 	desc := m.genMergeDesc()
 
+	if m.org == "openeuler" && m.repo == "kernel" {
+		return m.cli.MergePR(
+			m.org, m.repo, number,
+			sdk.PullRequestMergePutParam{
+				MergeMethod: string(m.cfg.MergeMethod),
+				Description: fmt.Sprintf("\n%s \n%s", m.pr.Body, desc),
+			},
+		)
+	}
+
 	return m.cli.MergePR(
 		m.org, m.repo, number,
 		sdk.PullRequestMergePutParam{
 			MergeMethod: string(m.cfg.MergeMethod),
-			Description: fmt.Sprintf("\n%s \n%s", m.pr.Body, desc),
+			Description: fmt.Sprintf("\n%s", desc),
 		},
 	)
 }
