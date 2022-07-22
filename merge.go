@@ -118,7 +118,9 @@ func (m *mergeHelper) merge() error {
 			m.org, m.repo, number,
 			sdk.PullRequestMergePutParam{
 				MergeMethod: string(m.cfg.MergeMethod),
-				Description: fmt.Sprintf("\n%s \n%s", m.pr.Body, desc),
+				Description: fmt.Sprintf("\n%s \n \n%s \n \n%s %s",
+					fmt.Sprintf("Merge Pull Request from: @%s", m.pr.User.GetLogin()),
+					m.pr.Body, fmt.Sprintf("Link:%s", m.pr.GetHtmlURL()), desc),
 			},
 		)
 	}
@@ -309,8 +311,7 @@ func (m *mergeHelper) genMergeDesc() string {
 		}
 
 		return fmt.Sprintf(
-			"\nFrom: @%s \n%s%s",
-			m.pr.User.Login,
+			"\n%s%s",
 			strings.Join(reviewedUserInfo, ""),
 			strings.Join(signedOffUserInfo, ""),
 		)
