@@ -239,10 +239,25 @@ func (m *mergeHelper) genMergeDesc() string {
 			comment.User.Login != m.pr.User.Login
 	}
 
+	f2 := func(comment sdk.PullRequestComments, reg *regexp.Regexp) bool {
+		return reg.MatchString(comment.Body) &&
+			comment.User.Login != m.pr.User.Login
+	}
+
 	reviewers := sets.NewString()
 	signers := sets.NewString()
 
+	org, repo := m.org, m.repo
 	for _, c := range comments {
+		if org == "openeuler" && repo == "kernel" {
+			if f2(c, regAddLgtm) {
+				reviewers.Insert(c.User.Login)
+			}
+
+			if f2(c, regAddApprove) {
+				signers.Insert(c.User.Login)
+			}
+		}
 		if f(c, regAddLgtm) {
 			reviewers.Insert(c.User.Login)
 		}
@@ -257,7 +272,6 @@ func (m *mergeHelper) genMergeDesc() string {
 	}
 
 	// kernel return the name and email address
-	org, repo := m.org, m.repo
 	if org == "openeuler" && repo == "kernel" {
 		content, err := m.cli.GetPathContent("openeuler", "community", "sig/Kernel/sig-info.yaml", "master")
 		if err != nil {
