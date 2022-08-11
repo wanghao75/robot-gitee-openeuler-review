@@ -85,6 +85,10 @@ type botConfig struct {
 	// that must be available to merge pr
 	LabelsForMerge []string `json:"labels_for_merge,omitempty"`
 
+	// LabelsNotAllowMerge means that if pull request has these labels, it can not been merged
+	// even all conditions are met
+	LabelsNotAllowMerge []string `json:"labels_not_allow_merge,omitempty"`
+
 	// MissingLabelsForMerge specifies the ones which a PR must not have to be merged.
 	MissingLabelsForMerge []string `json:"missing_labels_for_merge,omitempty"`
 

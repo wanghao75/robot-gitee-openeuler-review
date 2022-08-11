@@ -148,6 +148,14 @@ func (m *mergeHelper) canMerge(log *logrus.Entry) ([]string, bool) {
 		return []string{}, false
 	}
 
+	for label := range m.getPRLabels() {
+		for _, l := range m.cfg.LabelsNotAllowMerge {
+			if l == label {
+				return []string{}, false
+			}
+		}
+	}
+
 	if r := isLabelMatched(m.getPRLabels(), m.cfg, ops, log); len(r) > 0 {
 		return r, false
 	}
